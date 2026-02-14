@@ -733,6 +733,9 @@ async def handle_user_message(message: types.Message):
     elif message.video:
         message_type = "video"
         file_id = message.video.file_id
+    elif message.video_note:  # ДОБАВЛЕНО: обработка кружков
+        message_type = "video_note"
+        file_id = message.video_note.file_id
     elif message.voice:
         message_type = "voice"
         file_id = message.voice.file_id
@@ -786,6 +789,19 @@ async def handle_user_message(message: types.Message):
                         caption=admin_text + f"📝 Подпись: {caption}",
                         parse_mode=ParseMode.MARKDOWN,
                         reply_markup=get_moderation_keyboard(message.message_id)
+                    )
+                elif message.video_note:  # ДОБАВЛЕНО: отправка кружков админам
+                    # Отправляем видеосообщение (кружок)
+                    sent_msg = await bot.send_video_note(
+                        admin_id,
+                        message.video_note.file_id,
+                        reply_markup=get_moderation_keyboard(message.message_id)
+                    )
+                    # Отправляем отдельное сообщение с информацией (у кружков нет caption)
+                    await bot.send_message(
+                        admin_id,
+                        admin_text + f"📹 **Видеосообщение (кружок)**",
+                        parse_mode=ParseMode.MARKDOWN
                     )
                 elif message.voice:
                     sent_msg = await bot.send_voice(
