@@ -937,13 +937,14 @@ async def process_callback(callback: types.CallbackQuery, state: FSMContext):
     elif action == 'ban':
         # Бан (запросить причину)
         await state.set_state(AdminStates.waiting_for_ban_reason)
-        await state.update_data(ban_user_id=msg_info['user_id'], ban_forward_id=forward_id)
+        await state.update_data(ban_user_id=msg_info['user_id'], ban_forward_id=forward_id, ban_message=callback.message)
         
         await callback.message.answer(
             f"✍️ Введите причину бана для пользователя {msg_info['user_id']}:"
         )
         await callback.answer()
 
+# ================== ИСПРАВЛЕННЫЙ ОБРАБОТЧИК ПРИЧИНЫ БАНА ==================
 @dp.message(AdminStates.waiting_for_ban_reason)
 async def process_ban_reason(message: types.Message, state: FSMContext):
     """Обработка причины бана"""
@@ -953,31 +954,55 @@ async def process_ban_reason(message: types.Message, state: FSMContext):
     data = await state.get_data()
     user_id = data.get('ban_user_id')
     forward_id = data.get('ban_forward_id')
+    ban_message = data.get('ban_message')
     reason = message.text
     
     if user_id:
+        # Баним пользователя
         ban_user(user_id, message.from_user.id, reason)
         log_admin_action(message.from_user.id, 'ban', user_id, reason)
         
+        # Уведомляем забаненного пользователя
         try:
             await bot.send_message(user_id, f"⛔ Вы забанены.\nПричина: {reason}")
         except:
             pass
         
+        # Обновляем статус сообщения, если оно есть
         if forward_id:
             update_message_status(forward_id, PostStatus.REJECTED)
             
-            # Уведомляем админов
-            try:
-                for admin_id in ADMIN_IDS:
+            # Обновляем сообщение с постом - добавляем информацию о бане
+            if ban_message:
+                try:
+                    # Получаем текущий текст сообщения
+                    current_text = ban_message.text or ban_message.caption or ""
+                    
+                    # Добавляем информацию о бане
+                    new_text = f"{current_text}\n\n🚫 **Автор забанен**\nПричина: {reason}"
+                    
+                    # Обновляем сообщение (убираем кнопки и добавляем текст)
+                    await ban_message.edit_text(
+                        new_text,
+                        parse_mode=ParseMode.MARKDOWN,
+                        reply_markup=None
+                    )
+                except Exception as e:
+                    logger.error(f"Ошибка при обновлении сообщения о бане: {e}")
+        
+        # Отправляем уведомление админу, который сделал бан
+        await message.answer(f"✅ Пользователь {user_id} забанен. Причина: {reason}")
+        
+        # Уведомляем остальных админов
+        for admin_id in ADMIN_IDS:
+            if admin_id != message.from_user.id:  # Не отправляем тому, кто забанил
+                try:
                     await bot.send_message(
                         admin_id,
-                        f"🚫 Пользователь {user_id} забанен. Причина: {reason}"
+                        f"🚫 Пользователь {user_id} забанен.\nПричина: {reason}\nАдмин: {message.from_user.id}"
                     )
-            except:
-                pass
-        
-        await message.answer(f"✅ Пользователь {user_id} забанен")
+                except Exception as e:
+                    logger.error(f"Ошибка при уведомлении админа {admin_id}: {e}")
     
     await state.clear()
 
