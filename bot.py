@@ -637,7 +637,7 @@ async def cmd_ban(message: types.Message):
         log_admin_action(message.from_user.id, 'ban', user_id, reason)
         
         try:
-            await bot.send_message(user_id, f"⛔ Вы забанены.\nПричина: {reason}")
+            await bot.send_message(user_id, f"⛔ Вы забанены.\nПричина: {reason}\nОбжалование: @ceo_chool65")
         except:
             pass
         
@@ -714,6 +714,7 @@ async def handle_user_message(message: types.Message):
     
     # Проверка бана
     if is_user_banned(user_id):
+        ban_info = get_message_info(message.message_id)
         await message.answer("⛔ Вы заблокированы.")
         return
     
@@ -944,7 +945,7 @@ async def process_callback(callback: types.CallbackQuery, state: FSMContext):
         )
         await callback.answer()
 
-# ================== ИСПРАВЛЕННЫЙ ОБРАБОТЧИК ПРИЧИНЫ БАНА ==================
+# ================== ИСПРАВЛЕННЫЙ ОБРАБОТЧИК ПРИЧИНЫ БАНА С @ceo_chool65 ==================
 @dp.message(AdminStates.waiting_for_ban_reason)
 async def process_ban_reason(message: types.Message, state: FSMContext):
     """Обработка причины бана"""
@@ -962,9 +963,12 @@ async def process_ban_reason(message: types.Message, state: FSMContext):
         ban_user(user_id, message.from_user.id, reason)
         log_admin_action(message.from_user.id, 'ban', user_id, reason)
         
-        # Уведомляем забаненного пользователя
+        # Уведомляем забаненного пользователя с @ceo_chool65
         try:
-            await bot.send_message(user_id, f"⛔ Вы забанены.\nПричина: {reason}")
+            await bot.send_message(
+                user_id, 
+                f"⛔ Вы забанены.\nПричина: {reason}\nОбжалование: @ceo_chool65"
+            )
         except:
             pass
         
